@@ -1,0 +1,59 @@
+databases:
+  - name: paycord-db
+    databaseName: paycord
+    user: paycord_user
+    plan: basic-256mb
+    region: oregon
+    postgresMajorVersion: "16"
+    ipAllowList: [] # Internal access only by default; add 0.0.0.0/0 if connecting from local machine
+
+services:
+  # 1. FastAPI Backend (Always-on Starter instance — no cold starts for webhooks or judges)
+  - type: web
+    name: paycord-api
+    runtime: python
+    plan: starter
+    region: oregon
+    rootDir: backend
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: paycord-db
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: "gpt-5.4-mini"
+      - key: PAYPAL_ENV
+        value: "sandbox"
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: FRONTEND_PUBLIC_URL
+        value: "https://paycord-web.onrender.com"
+      - key: CORS_ORIGINS
+        value: "https://paycord-web.onrender.com,http://localhost:5173"
+
+  # 2. React + Vite + AG Grid Frontend (Global CDN Static Site)
+  - type: web
+    name: paycord-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: "https://paycord-api.onrender.com"
+    routes:
+      # SPA fallback so buyer settlement links (/settle/:token) resolve properly
+      - type: rewrite
+        source: /*
+        destination: /index.html
