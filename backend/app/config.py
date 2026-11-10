@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     paypal_client_secret: str = ""
     paypal_webhook_id: str = ""
     openai_api_key: str = ""
+    openai_base_url: str = ""  # set for Microsoft Foundry; empty = api.openai.com
     openai_model: str = "gpt-5.4-mini"
     frontend_public_url: str = "http://localhost:5173"
     cors_origins: str = "http://localhost:5173"
